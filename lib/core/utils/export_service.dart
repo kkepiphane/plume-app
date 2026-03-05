@@ -41,7 +41,7 @@ class ExportService {
   Future<void> shareFile(String path) async {
     await Share.shareXFiles(
       [XFile(path)],
-      text: 'Export Monnaie - ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+      text: 'Export Plume - ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
     );
   }
 
@@ -88,7 +88,7 @@ class ExportService {
 
     buffer.writeln();
     buffer.writeln(
-        'Généré par Monnaie App le ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+        'Généré par Plume App le ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
 
     final dir = await getApplicationDocumentsDirectory();
     final nowStr = DateFormat('yyyy-MM').format(month);

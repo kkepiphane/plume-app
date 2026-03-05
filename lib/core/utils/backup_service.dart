@@ -32,8 +32,8 @@ class BackupService {
 
     final now      = DateTime.now();
     final dateStr  = '${now.day.toString().padLeft(2,'0')}/${now.month.toString().padLeft(2,'0')}/${now.year}';
-    final subject  = 'Monnaie – Sauvegarde du $dateStr';
-    final body     = 'Conservez cet email pour restaurer vos données Monnaie.\n\n$payload';
+    final subject  = 'Plume – Sauvegarde du $dateStr';
+    final body     = 'Conservez cet email pour restaurer vos données Plume.\n\n$payload';
 
     final uri = Uri(
       scheme: 'mailto',
