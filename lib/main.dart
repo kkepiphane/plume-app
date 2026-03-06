@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/config/supabase_config.dart';
+import 'core/services/auth_service.dart';
+import 'core/services/sync_service.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/notification_service.dart';
 import 'core/theme/app_theme.dart';
@@ -11,27 +14,48 @@ import 'presentation/providers/app_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Orientation ───────────────────────────────────────────────────────────
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // ── Locale ────────────────────────────────────────────────────────────────
   await initializeDateFormatting('fr_FR', null);
+
+  // ── Local DB (Hive) — always runs, offline-first ──────────────────────────
   await LocalDataSource().init();
+
+  // ── Notifications ─────────────────────────────────────────────────────────
   await NotificationService().init();
   await NotificationService().requestPermission();
+
+  // ── Auth (Supabase OTP) ───────────────────────────────────────────────────
+  await AuthService.initialize(
+    supabaseUrl:     SupabaseConfig.url,
+    supabaseAnonKey: SupabaseConfig.anonKey,
+  );
+
+  // ── Background sync (WorkManager) ─────────────────────────────────────────
+  await SyncService.initialize();
+
+  // ── Status bar ────────────────────────────────────────────────────────────
   SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(statusBarColor: Colors.transparent));
-  runApp(const ProviderScope(child: MonnaieApp()));
+
+  runApp(const ProviderScope(child: PlumeApp()));
 }
 
-class MonnaieApp extends ConsumerWidget {
-  const MonnaieApp({super.key});
+class PlumeApp extends ConsumerWidget {
+  const PlumeApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final router   = ref.watch(routerProvider);
 
+    // ── Evening reminder check on each app resume ─────────────────────────
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService().checkEveningReminder(
         enabled:        settings.eveningReminder,
@@ -41,14 +65,15 @@ class MonnaieApp extends ConsumerWidget {
     });
 
     return MaterialApp.router(
-      title:                    'Plume',
+      title:                     'Plume',
       debugShowCheckedModeBanner: false,
-      theme:                    AppTheme.light,
-      darkTheme:                AppTheme.dark,
+      theme:                     AppTheme.light,
+      darkTheme:                 AppTheme.dark,
       themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.noScaling),
         child: child!,
       ),
     );

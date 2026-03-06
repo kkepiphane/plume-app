@@ -22,7 +22,7 @@ class HomePage extends ConsumerWidget {
     final symbol = settings.currencySymbol;
 
     final now = DateTime.now();
-    final todayTxs = txState.transactions.where((t) =>
+    final todayTxs = txState.where((t) =>
         t.date.year == now.year &&
         t.date.month == now.month &&
         t.date.day == now.day).toList();
