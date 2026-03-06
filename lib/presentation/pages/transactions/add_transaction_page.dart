@@ -56,56 +56,84 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez entrer un montant valide')));
+          const SnackBar(content: Text('Veuillez entrer un montant valide')));
       return;
     }
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez choisir une catégorie')));
+          const SnackBar(content: Text('Veuillez choisir une catégorie')));
       return;
     }
+
     setState(() => _isSaving = true);
 
-    final tx = TransactionEntity(
-      id: widget.transaction?.id ?? '',
-      amount: amount,
-      type: _isExpense ? TransactionType.expense : TransactionType.income,
-      categoryId: _selectedCategory!.id,
-      categoryLabel: _selectedCategory!.label,
-      categoryIcon: _selectedCategory!.icon,
-      categoryColor: _selectedCategory!.color,
-      note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-      date: _selectedDate,
-      createdAt: widget.transaction?.createdAt ?? DateTime.now(),
-    );
-
-    if (widget.transaction != null) {
-      await ref.read(transactionsProvider.notifier).update(tx);
-    } else {
-      await ref.read(transactionsProvider.notifier).add(tx);
-    }
-
-    // Record that user added a transaction today (for evening reminder)
-    await NotificationService().recordTransactionAdded();
-
-    // Budget alert check
-    final settings = ref.read(settingsProvider);
-    if (settings.monthlyBudget > 0 && _isExpense) {
-      final monthly = ref.read(monthlySummaryProvider);
-      await NotificationService().checkAndNotifyBudget(
-        totalExpenses: monthly.totalExpenses,
-        budget: settings.monthlyBudget,
-        threshold1: settings.alertThreshold1,
-        threshold2: settings.alertThreshold2,
-        threshold3: settings.alertThreshold3,
-        currencySymbol: settings.currencySymbol,
+    try {
+      final tx = TransactionEntity(
+        id: widget.transaction?.id ?? '',
+        amount: amount,
+        type: _isExpense ? TransactionType.expense : TransactionType.income,
+        categoryId: _selectedCategory!.id,
+        categoryLabel: _selectedCategory!.label,
+        categoryIcon: _selectedCategory!.icon,
+        categoryColor: _selectedCategory!.color,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+        date: _selectedDate,
+        createdAt: widget.transaction?.createdAt ?? DateTime.now(),
       );
-    }
 
-    if (mounted) {
-      HapticFeedback.lightImpact();
-      context.pop();
+      if (widget.transaction != null) {
+        await ref.read(transactionsProvider.notifier).update(tx);
+      } else {
+        await ref.read(transactionsProvider.notifier).add(tx);
+      }
+
+      _runSideEffectsInBackground(amount, _isExpense);
+
+      if (mounted) {
+        HapticFeedback.lightImpact();
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erreur lors de l'enregistrement : $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
+  }
+
+
+  void _runSideEffectsInBackground(double amount, bool isExpense) {
+    Future(() async {
+      try {
+        await NotificationService().recordTransactionAdded()
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+
+      try {
+        final settings = ref.read(settingsProvider);
+        if (settings.monthlyBudget > 0 && isExpense) {
+          final monthly = ref.read(monthlySummaryProvider);
+          await NotificationService().checkAndNotifyBudget(
+            totalExpenses: monthly.totalExpenses,
+            budget: settings.monthlyBudget,
+            threshold1: settings.alertThreshold1,
+            threshold2: settings.alertThreshold2,
+            threshold3: settings.alertThreshold3,
+            currencySymbol: settings.currencySymbol,
+          ).timeout(const Duration(seconds: 3));
+        }
+      } catch (_) {}
+    });
   }
 
   @override

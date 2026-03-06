@@ -10,143 +10,145 @@ import '../../providers/app_providers.dart';
 
 class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
-
   @override
   ConsumerState<TransactionsPage> createState() => _TransactionsPageState();
 }
 
 class _TransactionsPageState extends ConsumerState<TransactionsPage> {
-  final _searchController = TextEditingController();
-  bool _isSearching = false;
+  final _searchCtrl = TextEditingController();
+  bool  _searching  = false;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    final txState = ref.watch(transactionsProvider);
+    final txs      = ref.watch(filteredTransactionsProvider);
+    final filter   = ref.watch(transactionFilterProvider);
     final settings = ref.watch(settingsProvider);
-    final symbol = settings.currencySymbol;
-    final grouped = _groupByDate(txState.transactions);
+    final symbol   = settings.currencySymbol;
+    final cs       = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: _isSearching
+        title: _searching
             ? TextField(
-                controller: _searchController,
-                autofocus: true,
+                controller: _searchCtrl,
+                autofocus:  true,
                 decoration: const InputDecoration(
-                  hintText: 'Rechercher...',
-                  border: InputBorder.none, enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none, filled: false, contentPadding: EdgeInsets.zero,
+                  hintText: 'Rechercher…',
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
                 ),
-                onChanged: (q) {
-                  ref.read(transactionsProvider.notifier).setFilter(
-                    txState.filter.copyWith(searchQuery: q.isEmpty ? null : q, clearSearch: q.isEmpty),
-                  );
-                },
+                onChanged: (q) => ref
+                    .read(transactionFilterProvider.notifier)
+                    .state = filter.copyWith(
+                        search: q, clearSearch: q.isEmpty),
               )
             : const Text('Transactions'),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search_rounded),
+            icon: Icon(_searching ? Icons.close : Icons.search),
             onPressed: () {
-              setState(() => _isSearching = !_isSearching);
-              if (!_isSearching) {
-                _searchController.clear();
-                ref.read(transactionsProvider.notifier).setFilter(
-                  txState.filter.copyWith(clearSearch: true),
-                );
+              setState(() => _searching = !_searching);
+              if (!_searching) {
+                _searchCtrl.clear();
+                ref.read(transactionFilterProvider.notifier).state =
+                    filter.copyWith(clearSearch: true);
               }
             },
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list_rounded),
-            onPressed: () => _showFilterSheet(context, ref, txState),
+            icon: Badge(
+              isLabelVisible: filter.type != FilterType.all,
+              child: const Icon(Icons.filter_list_rounded),
+            ),
+            onPressed: () => _showFilterSheet(context, ref, filter),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: _buildPeriodTabs(ref, filter),
+        ),
       ),
-      body: Column(
-        children: [
-          _buildPeriodTabs(ref, txState),
-          Expanded(
-            child: txState.transactions.isEmpty
-                ? EmptyState(
-                    icon: Icons.inbox_outlined,
-                    title: 'Aucune transaction',
-                    subtitle: txState.filter.searchQuery != null
-                        ? 'Aucun résultat pour "${txState.filter.searchQuery}"'
-                        : 'Commencez par ajouter une transaction',
-                    onAction: () => context.push('/add-transaction', extra: {'isExpense': true}),
-                    actionLabel: 'Ajouter',
-                  )
-                : ListView.builder(
-                    itemCount: grouped.length,
-                    itemBuilder: (context, i) {
-                      final entry = grouped.entries.elementAt(i);
-                      return _DateGroup(
-                        date: entry.key,
-                        transactions: entry.value,
-                        symbol: symbol,
-                        onTap: (tx) => context.push('/add-transaction',
-                            extra: {'isExpense': tx.isExpense, 'transaction': tx}),
-                        onDelete: (tx) => _confirmDelete(context, ref, tx),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add-transaction', extra: {'isExpense': true}),
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+      body: txs.isEmpty
+          ? EmptyState(
+              icon:     Icons.receipt_long_outlined,
+              title:    'Aucune transaction',
+              subtitle: filter.search.isNotEmpty
+                  ? 'Aucun résultat pour "${filter.search}"'
+                  : 'Ajoutez votre première transaction',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.only(bottom: 100),
+              itemCount: _grouped(txs).length,
+              itemBuilder: (_, i) {
+                final entry = _grouped(txs).entries.elementAt(i);
+                return _DateGroup(
+                  date: entry.key,
+                  transactions: entry.value,
+                  symbol: symbol,
+                  cs: cs,
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/add-transaction',
+            extra: {'isExpense': true}),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildPeriodTabs(WidgetRef ref, TransactionsState state) {
-    final periods = [
-      (PeriodFilter.today, "Auj."),
-      (PeriodFilter.week, "Semaine"),
-      (PeriodFilter.month, "Mois"),
-      (PeriodFilter.year, "Année"),
-      (PeriodFilter.all, "Tout"),
+  Map<DateTime, List<TransactionEntity>> _grouped(
+      List<TransactionEntity> txs) {
+    final map = <DateTime, List<TransactionEntity>>{};
+    for (final tx in txs) {
+      final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      (map[day] ??= []).add(tx);
+    }
+    return Map.fromEntries(
+        map.entries.toList()..sort((a, b) => b.key.compareTo(a.key)));
+  }
+
+  Widget _buildPeriodTabs(WidgetRef ref, TransactionFilter filter) {
+    final cs = Theme.of(context).colorScheme;
+    final tabs = [
+      (FilterPeriod.today, 'Auj.'),
+      (FilterPeriod.week,  'Semaine'),
+      (FilterPeriod.month, 'Mois'),
+      (FilterPeriod.year,  'Année'),
+      (FilterPeriod.all,   'Tout'),
     ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: periods.map((p) {
-          final isSelected = state.filter.period == p.$1;
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        children: tabs.map((tab) {
+          final selected = filter.period == tab.$1;
           return GestureDetector(
-            onTap: () => ref.read(transactionsProvider.notifier)
-                .setFilter(state.filter.copyWith(period: p.$1)),
-            child: Container(
+            onTap: () => ref
+                .read(transactionFilterProvider.notifier)
+                .state = filter.copyWith(period: tab.$1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).cardColor,
+                color: selected ? cs.primary : cs.surfaceVariant,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).dividerColor,
-                ),
               ),
+              alignment: Alignment.center,
               child: Text(
-                p.$2,
+                tab.$2,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize:   13,
                   fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? Colors.white
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: selected ? cs.onPrimary : cs.onSurfaceVariant,
                 ),
               ),
             ),
@@ -156,194 +158,212 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     );
   }
 
-  Map<String, List<TransactionEntity>> _groupByDate(List<TransactionEntity> txs) {
-    final grouped = <String, List<TransactionEntity>>{};
-    for (final tx in txs) {
-      final key = DateFormatter.formatDate(tx.date);
-      grouped.putIfAbsent(key, () => []).add(tx);
-    }
-    return grouped;
-  }
-
-  void _showFilterSheet(BuildContext context, WidgetRef ref, TransactionsState state) {
+  void _showFilterSheet(BuildContext context, WidgetRef ref,
+      TransactionFilter filter) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Filtrer par type', style: Theme.of(context).textTheme.titleMedium),
+            Text('Filtrer par type',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                _FilterChip(label: 'Tout', icon: Icons.list_rounded,
-                    isSelected: state.filter.type == null,
-                    onTap: () { ref.read(transactionsProvider.notifier).setFilter(state.filter.copyWith(clearType: true)); Navigator.pop(context); }),
-                const SizedBox(width: 8),
-                _FilterChip(label: 'Dépenses', icon: Icons.arrow_upward_rounded,
-                    isSelected: state.filter.type == TransactionType.expense,
-                    onTap: () { ref.read(transactionsProvider.notifier).setFilter(state.filter.copyWith(type: TransactionType.expense)); Navigator.pop(context); }),
-                const SizedBox(width: 8),
-                _FilterChip(label: 'Revenus', icon: Icons.arrow_downward_rounded,
-                    isSelected: state.filter.type == TransactionType.income,
-                    onTap: () { ref.read(transactionsProvider.notifier).setFilter(state.filter.copyWith(type: TransactionType.income)); Navigator.pop(context); }),
-              ],
+            _FilterOption(
+              icon:     Icons.list_rounded,
+              label:    'Toutes',
+              selected: filter.type == FilterType.all,
+              onTap: () {
+                ref.read(transactionFilterProvider.notifier).state =
+                    filter.copyWith(type: FilterType.all);
+                Navigator.pop(context);
+              },
             ),
-            const SizedBox(height: 20),
+            _FilterOption(
+              icon:     Icons.arrow_upward_rounded,
+              label:    'Dépenses',
+              selected: filter.type == FilterType.expense,
+              color:    Colors.red,
+              onTap: () {
+                ref.read(transactionFilterProvider.notifier).state =
+                    filter.copyWith(type: FilterType.expense);
+                Navigator.pop(context);
+              },
+            ),
+            _FilterOption(
+              icon:     Icons.arrow_downward_rounded,
+              label:    'Revenus',
+              selected: filter.type == FilterType.income,
+              color:    Colors.green,
+              onTap: () {
+                ref.read(transactionFilterProvider.notifier).state =
+                    filter.copyWith(type: FilterType.income);
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
-
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, TransactionEntity tx) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la transaction'),
-        content: Text('Supprimer "${tx.categoryLabel}" — ${tx.amount} ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      ref.read(transactionsProvider.notifier).delete(tx.id);
-    }
-  }
 }
 
-// ── Date Group ────────────────────────────────────────────────────────────────
-
+// ── Date group ────────────────────────────────────────────────────────────────
 class _DateGroup extends StatelessWidget {
-  final String date;
+  final DateTime date;
   final List<TransactionEntity> transactions;
   final String symbol;
-  final Function(TransactionEntity) onTap;
-  final Function(TransactionEntity) onDelete;
-
+  final ColorScheme cs;
   const _DateGroup({
-    required this.date, required this.transactions,
-    required this.symbol, required this.onTap, required this.onDelete,
+    required this.date,
+    required this.transactions,
+    required this.symbol,
+    required this.cs,
   });
 
   @override
   Widget build(BuildContext context) {
-    double dayTotal = 0;
-    for (final tx in transactions) {
-      dayTotal += tx.isExpense ? -tx.amount : tx.amount;
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(date.toUpperCase(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-              Text(
-                '${dayTotal >= 0 ? '+' : ''}${dayTotal.toStringAsFixed(0)} $symbol',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: dayTotal >= 0 ? Colors.green.shade700 : Colors.red.shade700,
-                ),
+    final dayTotal = transactions.fold<double>(
+      0, (s, t) => s + (t.isExpense ? -t.amount : t.amount));
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(DateFormatter.formatDate(date),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700)),
+            Text(
+              CurrencyFormatter.format(dayTotal.abs(), symbol,
+                  compact: false),
+              style: TextStyle(
+                fontSize:   12,
+                fontWeight: FontWeight.w700,
+                color: dayTotal >= 0
+                    ? Colors.green.shade600
+                    : Colors.red.shade600,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: transactions.length,
-            separatorBuilder: (_, __) =>
-                Divider(height: 1, indent: 72, color: Theme.of(context).dividerColor),
-            itemBuilder: (context, i) {
-              final tx = transactions[i];
-              return Dismissible(
-                key: Key(tx.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: i == 0
-                        ? const BorderRadius.vertical(top: Radius.circular(16))
-                        : i == transactions.length - 1
-                            ? const BorderRadius.vertical(bottom: Radius.circular(16))
-                            : BorderRadius.zero,
-                  ),
-                  child: const Icon(Icons.delete_outline, color: Colors.red),
-                ),
-                confirmDismiss: (_) async { onDelete(tx); return false; },
-                child: TransactionListItem(
-                  icon: CategoryIcons.get(tx.categoryIcon),
-                  categoryLabel: tx.categoryLabel,
-                  note: tx.note,
-                  amount: '${tx.amount.toStringAsFixed(0)} $symbol',
-                  time: DateFormatter.formatTime(tx.date),
-                  isExpense: tx.isExpense,
-                  categoryColor: Color(tx.categoryColor),
-                  onTap: () => onTap(tx),
-                ),
-              );
-            },
-          ),
+      ),
+      Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
-      ],
+        child: Column(
+          children: transactions.asMap().entries.map((e) {
+            final isLast = e.key == transactions.length - 1;
+            return Column(children: [
+              _TxRow(tx: e.value, symbol: symbol, cs: cs),
+              if (!isLast)
+                Divider(height: 1, indent: 64,
+                    color: Theme.of(context).dividerColor),
+            ]);
+          }).toList(),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ── Transaction row ───────────────────────────────────────────────────────────
+class _TxRow extends StatelessWidget {
+  final TransactionEntity tx;
+  final String symbol;
+  final ColorScheme cs;
+  const _TxRow({required this.tx, required this.symbol, required this.cs});
+
+  @override
+  Widget build(BuildContext context) {
+    final catColor = Color(tx.categoryColor);
+    final isExp    = tx.isExpense;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => context.push('/add-transaction',
+          extra: {'isExpense': isExp, 'transaction': tx}),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(children: [
+          // Icon
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: catColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(CategoryIcons.get(tx.categoryIcon),
+                color: catColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          // Label + note
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tx.categoryLabel,
+                    style: Theme.of(context).textTheme.titleSmall),
+                if (tx.note?.isNotEmpty == true)
+                  Text(tx.note!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          // Amount
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(
+              '${isExp ? '-' : '+'}${CurrencyFormatter.format(tx.amount, symbol)}',
+              style: TextStyle(
+                fontSize:   14,
+                fontWeight: FontWeight.w700,
+                color: isExp ? Colors.red.shade600 : Colors.green.shade600,
+              ),
+            ),
+            Text(DateFormatter.formatTime(tx.date),
+                style: Theme.of(context).textTheme.labelSmall),
+          ]),
+        ]),
+      ),
     );
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
+// ── Filter option ─────────────────────────────────────────────────────────────
+class _FilterOption extends StatelessWidget {
   final IconData icon;
-  final bool isSelected;
+  final String label;
+  final bool selected;
+  final Color? color;
   final VoidCallback onTap;
-
-  const _FilterChip({required this.label, required this.icon, required this.isSelected, required this.onTap});
-
+  const _FilterOption({
+    required this.icon, required this.label,
+    required this.selected, this.color, required this.onTap,
+  });
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return GestureDetector(
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return ListTile(
+      leading: Icon(icon,
+          color: selected ? c : Theme.of(context).colorScheme.onSurfaceVariant),
+      title: Text(label,
+          style: TextStyle(
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            color: selected ? c : null,
+          )),
+      trailing: selected ? Icon(Icons.check_circle, color: c) : null,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? primary.withOpacity(0.1) : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? primary : Theme.of(context).dividerColor),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: isSelected ? primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                color: isSelected ? primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
-          ],
-        ),
-      ),
     );
   }
 }

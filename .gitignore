@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────
-# PLUME — Flutter .gitignore
+# MONNAIE — Flutter .gitignore
 # ──────────────────────────────────────────────
 
 # ── Flutter / Dart ────────────────────────────
@@ -12,9 +12,7 @@
 build/
 pubspec.lock          # Commit this for apps (remove line to track it)
 
-# Generated Dart files (keep *.g.dart for Hive adapters if not using build_runner in CI)
-# Uncomment the next line ONLY if you run build_runner in CI:
-# *.g.dart
+
 
 # ── Android ───────────────────────────────────
 android/.gradle/
@@ -96,3 +94,6 @@ test/coverage/
 *.bak
 *.tmp
 *.orig
+
+# ── Secrets (NEVER commit) ─────────────────────────────────────────────────
+lib/core/config/supabase_config.dart
