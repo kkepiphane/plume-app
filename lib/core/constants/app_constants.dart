@@ -99,7 +99,7 @@ class ExpenseCategories {
     },
 
     //Dépenses maison
-    // {'id': 'loyer', 'label': 'Loyer', 'icon': 'home', 'color': 0xFF9C27B0},
+    {'id': 'loyer', 'label': 'Loyer', 'icon': 'home', 'color': 0xFF9C27B0},
     {
       'id': 'eau_electricite',
       'label': 'Eau / Électricité',
