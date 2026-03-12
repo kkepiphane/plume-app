@@ -16,16 +16,22 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final txState = ref.watch(transactionsProvider);
+    final txState  = ref.watch(transactionsProvider);
     final monthlySummary = ref.watch(monthlySummaryProvider);
-    final todaySummary = ref.watch(todaySummaryProvider);
-    final symbol = settings.currencySymbol;
+    final todaySummary   = ref.watch(todaySummaryProvider);
+    final symbol   = settings.currencySymbol;
+    final budget   = settings.monthlyBudget;
+
+    // Budget remaining — computed here and passed down
+    final budgetRemaining = budget > 0
+        ? budget - monthlySummary.totalExpenses
+        : null;
 
     final now = DateTime.now();
     final todayTxs = txState.where((t) =>
-        t.date.year == now.year &&
+        t.date.year  == now.year  &&
         t.date.month == now.month &&
-        t.date.day == now.day).toList();
+        t.date.day   == now.day).toList();
 
     return Scaffold(
       body: CustomScrollView(
@@ -34,11 +40,11 @@ class HomePage extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Column(
               children: [
-                _buildBalanceHero(context, monthlySummary, symbol),
+                _buildBalanceHero(context, monthlySummary, symbol, budgetRemaining),
                 _buildQuickActions(context),
                 _buildTodayStats(context, todaySummary, symbol),
-                if (settings.monthlyBudget > 0)
-                  _buildBudgetSection(context, monthlySummary, symbol, settings.monthlyBudget),
+                if (budget > 0)
+                  _buildBudgetSection(context, monthlySummary, symbol, budget),
                 _buildInsights(context, monthlySummary),
                 _buildRecentTransactions(context, todayTxs, symbol),
                 const SizedBox(height: 32),
@@ -80,11 +86,13 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildBalanceHero(BuildContext context, FinancialSummaryEntity summary, String symbol) {
-    final isPositive = summary.balance >= 0;
+  Widget _buildBalanceHero(BuildContext context,
+      FinancialSummaryEntity summary, String symbol, double? budgetRemaining) {
+    final isPositive   = summary.balance >= 0;
     final primaryColor = isPositive
         ? Theme.of(context).colorScheme.primary
         : Colors.red.shade700;
+    final budgetIsOver = budgetRemaining != null && budgetRemaining < 0;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -111,12 +119,14 @@ class HomePage extends ConsumerWidget {
         children: [
           const Text(
             'SOLDE DU MOIS',
-            style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5),
+            style: TextStyle(color: Colors.white70, fontSize: 11,
+                fontWeight: FontWeight.w700, letterSpacing: 1.5),
           ),
           const SizedBox(height: 8),
           Text(
             CurrencyFormatter.format(summary.balance.abs(), symbol),
-            style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1),
+            style: const TextStyle(color: Colors.white, fontSize: 34,
+                fontWeight: FontWeight.w800, letterSpacing: -1),
           ),
           if (!isPositive)
             const Text(
@@ -132,7 +142,7 @@ class HomePage extends ConsumerWidget {
                 icon: Icons.arrow_downward_rounded,
                 color: Colors.greenAccent,
               ),
-              const SizedBox(width: 24),
+              const SizedBox(width: 16),
               _HeroStat(
                 label: 'Dépenses',
                 amount: CurrencyFormatter.formatCompact(summary.totalExpenses, symbol),
@@ -140,17 +150,59 @@ class HomePage extends ConsumerWidget {
                 color: Colors.orangeAccent,
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
+              // Budget remaining chip (only shown if budget is set)
+              if (budgetRemaining != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: budgetIsOver
+                          ? Colors.redAccent.withOpacity(0.6)
+                          : Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                      budgetIsOver
+                          ? Icons.warning_rounded
+                          : Icons.account_balance_wallet_rounded,
+                      color: budgetIsOver ? Colors.redAccent : Colors.white,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      budgetIsOver
+                          ? '-${CurrencyFormatter.formatCompact(budgetRemaining.abs(), symbol)}'
+                          : CurrencyFormatter.formatCompact(budgetRemaining, symbol),
+                      style: TextStyle(
+                        color: budgetIsOver ? Colors.redAccent : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      budgetIsOver ? ' dépassé' : ' restant',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 11),
+                    ),
+                  ]),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Épargne ${summary.savingsRate.toStringAsFixed(0)}%',
+                    style: const TextStyle(color: Colors.white,
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
                 ),
-                child: Text(
-                  'Épargne ${summary.savingsRate.toStringAsFixed(0)}%',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
             ],
           ),
         ],
@@ -223,6 +275,19 @@ class HomePage extends ConsumerWidget {
 
   Widget _buildBudgetSection(
       BuildContext context, FinancialSummaryEntity summary, String symbol, double budget) {
+    // Compute percent here where we have the actual budget value
+    final percent   = budget > 0
+        ? (summary.totalExpenses / budget * 100).clamp(0.0, 100.0)
+        : 0.0;
+    final remaining = (budget - summary.totalExpenses);
+    final isOver    = remaining < 0;
+
+    Color barColor;
+    if (percent >= 100)     barColor = Colors.red.shade600;
+    else if (percent >= 75) barColor = Colors.orange.shade600;
+    else if (percent >= 50) barColor = Colors.amber.shade600;
+    else                    barColor = Colors.green.shade600;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       padding: const EdgeInsets.all(16),
@@ -231,10 +296,82 @@ class HomePage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: BudgetProgressBar(
-        percent: summary.budgetUsagePercent,
-        spent: CurrencyFormatter.formatCompact(summary.totalExpenses, symbol),
-        budget: CurrencyFormatter.formatCompact(budget, symbol),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Budget mensuel',
+                  style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                '${percent.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800,
+                  color: barColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: (percent / 100).clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceVariant,
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Spent / Budget / Remaining row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Dépensé
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Dépensé',
+                    style: Theme.of(context).textTheme.labelSmall),
+                Text(
+                  CurrencyFormatter.formatCompact(
+                      summary.totalExpenses, symbol),
+                  style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700,
+                    color: Colors.red.shade600,
+                  ),
+                ),
+              ]),
+              // Reste
+              // Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              //   Text('Reste', style: Theme.of(context).textTheme.labelSmall),
+              //   Text(
+              //     isOver
+              //         ? '-${CurrencyFormatter.formatCompact(remaining.abs(), symbol)}'
+              //         : CurrencyFormatter.formatCompact(remaining, symbol),
+              //     style: TextStyle(
+              //       fontSize: 13, fontWeight: FontWeight.w800,
+              //       color: isOver ? Colors.red.shade700 : Colors.green.shade600,
+              //     ),
+              //   ),
+              // ]),
+              // Budget total
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('Budget', style: Theme.of(context).textTheme.labelSmall),
+                Text(
+                  CurrencyFormatter.formatCompact(budget, symbol),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,69 @@
+# name: plume
+# description: Plume — gérez vos finances en douceur. Offline-first, léger, élégant.
+# publish_to: 'none'
+# version: 1.0.0+1
+
+# environment:
+#   sdk: '>=3.0.0 <4.0.0'
+
+# dependencies:
+#   flutter:
+#     sdk: flutter
+
+#   # State Management
+#   flutter_riverpod: ^2.5.1
+
+#   # Local Database (offline-first)
+#   hive: ^2.2.3
+#   hive_flutter: ^1.1.0
+
+#   # Navigation
+#   #   # Navigation
+#   go_router: ^17.1.0
+
+#   # Charts
+#   fl_chart: ^1.1.1
+
+#   # Notifications + Background sync
+#   flutter_local_notifications: ^17.1.2
+#   workmanager: ^0.9.0+3
+
+#   # Date & Time
+#   intl: ^0.20.2
+
+#   # Network
+#   http: ^1.2.1
+
+#   # Auth & Backup
+#   supabase_flutter: ^2.5.6
+#   googleapis_auth: ^1.6.0
+
+#   # Storage
+#   shared_preferences: ^2.2.3
+#   path_provider: ^2.1.3
+#   uuid: ^4.4.0
+
+#   # Sharing
+#   share_plus: ^12.0.1
+#   url_launcher: ^6.2.6
+
+#   # UI
+#   flutter_animate: ^4.5.0
+#   cupertino_icons: ^1.0.6
+
+# dev_dependencies:
+#   flutter_test:
+#     sdk: flutter
+#   flutter_lints: ^6.0.0
+#   hive_generator: ^2.0.1
+#   build_runner: ^2.4.9
+
+# flutter:
+#   uses-material-design: true
+#   assets:
+#     - assets/
+#     - assets/icons/
+
 name: plume
 description: Plume — gérez vos finances en douceur. Offline-first, léger, élégant.
 publish_to: 'none'
@@ -18,25 +84,24 @@ dependencies:
   hive_flutter: ^1.1.0
 
   # Navigation
-  #   # Navigation
-  go_router: ^17.1.0
+  go_router: ^13.2.4
 
   # Charts
-  fl_chart: ^1.1.1
+  fl_chart: ^0.68.0
 
   # Notifications + Background sync
   flutter_local_notifications: ^17.1.2
-  workmanager: ^0.9.0+3
+  workmanager: ^0.5.2          # background tasks (sync 2h du matin)
 
   # Date & Time
-  intl: ^0.20.2
+  intl: ^0.19.0
 
   # Network
-  http: ^1.2.1
+  http: ^1.2.1                 # OTP + Google Drive API (léger, pas de SDK lourd)
 
   # Auth & Backup
-  supabase_flutter: ^2.5.6
-  googleapis_auth: ^1.6.0
+  supabase_flutter: ^2.5.6     # OTP email auth (léger ~2Mo)
+  googleapis_auth: ^1.6.0      # Google Drive OAuth tokens
 
   # Storage
   shared_preferences: ^2.2.3
@@ -44,7 +109,14 @@ dependencies:
   uuid: ^4.4.0
 
   # Sharing
-  share_plus: ^12.0.1
+  share_plus: ^9.0.0
+
+  # PDF generation (rapport mensuel)
+  pdf: ^3.11.1
+  printing: ^5.13.1
+
+  # Android Home Widget
+  home_widget: ^0.7.0
   url_launcher: ^6.2.6
 
   # UI
@@ -54,7 +126,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  flutter_lints: ^3.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.9
 
@@ -63,7 +135,7 @@ flutter:
   assets:
     - assets/
     - assets/icons/
-
+    
 flutter_launcher_icons:
   android: true
   ios: true

@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../data/datasources/local_datasource.dart';
+import '../../domain/entities/savings_goal_entity.dart';
+import '../../domain/entities/subscription_entity.dart';
+import '../../core/services/widget_service.dart';
+import '../../core/services/family_service.dart';
 import '../../data/repositories/repositories.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/category_entity.dart';
@@ -44,13 +48,15 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsEntity>
 // ── Transactions ──────────────────────────────────────────────────────────────
 class TransactionsNotifier extends StateNotifier<List<TransactionEntity>> {
   final TransactionRepository _repo;
-  TransactionsNotifier(this._repo) : super([]) { load(); }
+  final Ref _ref;
+  TransactionsNotifier(this._repo, this._ref) : super([]) { load(); }
 
   void load() => state = _repo.getAll();
 
   Future<void> add(TransactionEntity tx) async {
     await _repo.add(tx);
     load();
+    _postUpdate(tx, 'add');
   }
 
   Future<void> update(TransactionEntity tx) async {
@@ -59,14 +65,27 @@ class TransactionsNotifier extends StateNotifier<List<TransactionEntity>> {
   }
 
   Future<void> delete(String id) async {
+    final tx = state.where((t) => t.id == id).firstOrNull;
     await _repo.delete(id);
     load();
+    if (tx != null) _postUpdate(tx, 'delete');
+  }
+
+  void _postUpdate(TransactionEntity tx, String action) {
+    final settings = _ref.read(settingsProvider);
+    // Update Android home widget (non-blocking)
+    WidgetService().updateWidget(
+      currencySymbol: settings.currencySymbol,
+      monthlyBudget:  settings.monthlyBudget,
+    );
+    // Broadcast to family channel (non-blocking)
+    FamilyService().broadcastTransaction(tx, action);
   }
 }
 
 final transactionsProvider =
     StateNotifierProvider<TransactionsNotifier, List<TransactionEntity>>(
-  (ref) => TransactionsNotifier(ref.read(transactionRepositoryProvider)),
+  (ref) => TransactionsNotifier(ref.read(transactionRepositoryProvider), ref),
 );
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -177,10 +196,13 @@ final weeklySummaryProvider = Provider<FinancialSummaryEntity>((ref) {
 });
 
 final monthlySummaryProvider = Provider<FinancialSummaryEntity>((ref) {
-  final txs = ref.watch(transactionsProvider);
-  final now = DateTime.now();
-  return _buildSummary(txs.where((t) =>
-      t.date.year == now.year && t.date.month == now.month).toList());
+  final txs    = ref.watch(transactionsProvider);
+  final budget = ref.watch(settingsProvider).monthlyBudget;
+  final now    = DateTime.now();
+  return _buildSummary(
+    txs.where((t) => t.date.year == now.year && t.date.month == now.month).toList(),
+    budget: budget,
+  );
 });
 
 final yearlySummaryProvider = Provider<FinancialSummaryEntity>((ref) {
@@ -193,11 +215,12 @@ final allTimeSummaryProvider = Provider<FinancialSummaryEntity>((ref) {
   return _buildSummary(ref.watch(transactionsProvider));
 });
 
-FinancialSummaryEntity _buildSummary(List<TransactionEntity> txs) {
+FinancialSummaryEntity _buildSummary(List<TransactionEntity> txs,
+    {double budget = 0}) {
   double expenses = 0, income = 0;
-  final expCat  = <String, double>{};
-  final incCat  = <String, double>{};
-  final byDay   = <String, DailyBalance>{};
+  final expCat = <String, double>{};
+  final incCat = <String, double>{};
+  final byDay  = <String, DailyBalance>{};
 
   for (final t in txs) {
     if (t.isExpense) {
@@ -224,18 +247,102 @@ FinancialSummaryEntity _buildSummary(List<TransactionEntity> txs) {
       ? ((income - expenses) / income * 100).clamp(0.0, 100.0)
       : 0.0;
 
+  final budgetUsage = budget > 0
+      ? (expenses / budget * 100).clamp(0.0, 999.0)
+      : 0.0;
+
   return FinancialSummaryEntity(
-    totalExpenses:       expenses,
-    totalIncome:         income,
-    balance:             income - expenses,
-    savingsRate:         savingsRate,
-    budgetUsagePercent:  0.0, // computed in UI with budget setting
-    expensesByCategory:  expCat,
-    incomeByCategory:    incCat,
-    dailyBalances:       dailyList,
+    totalExpenses:      expenses,
+    totalIncome:        income,
+    balance:            income - expenses,
+    savingsRate:        savingsRate,
+    budgetUsagePercent: budgetUsage,
+    expensesByCategory: expCat,
+    incomeByCategory:   incCat,
+    dailyBalances:      dailyList,
   );
 }
 
 // ── Last sync time (for settings display) ────────────────────────────────────
 final lastSyncProvider = FutureProvider<DateTime?>((ref) =>
     SyncService().lastSync());
+
+// ── Savings Goals ─────────────────────────────────────────────────────────────
+class GoalsNotifier extends StateNotifier<List<SavingsGoalEntity>> {
+  GoalsNotifier() : super([]) { load(); }
+
+  void load() => state = LocalDataSource().getAllGoals();
+
+  Future<void> add(SavingsGoalEntity g) async {
+    await LocalDataSource().saveGoal(g); load();
+  }
+  Future<void> update(SavingsGoalEntity g) async {
+    await LocalDataSource().saveGoal(g); load();
+  }
+  Future<void> delete(String id) async {
+    await LocalDataSource().deleteGoal(id); load();
+  }
+  Future<void> addSaving(String goalId, double amount) async {
+    await LocalDataSource().addToGoal(goalId, amount); load();
+  }
+}
+
+final goalsProvider =
+    StateNotifierProvider<GoalsNotifier, List<SavingsGoalEntity>>(
+  (_) => GoalsNotifier());
+
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+class SubscriptionsNotifier extends StateNotifier<List<SubscriptionEntity>> {
+  final Ref _ref;
+  SubscriptionsNotifier(this._ref) : super([]) { load(); }
+
+  void load() => state = LocalDataSource().getAllSubscriptions();
+
+  Future<void> add(SubscriptionEntity s) async {
+    await LocalDataSource().saveSubscription(s); load();
+  }
+  Future<void> update(SubscriptionEntity s) async {
+    await LocalDataSource().saveSubscription(s); load();
+  }
+  Future<void> delete(String id) async {
+    await LocalDataSource().deleteSubscription(id); load();
+  }
+  Future<void> pay(SubscriptionEntity sub) async {
+    final settings = _ref.read(settingsProvider);
+    await LocalDataSource().paySubscription(sub, settings.currencySymbol);
+    _ref.read(transactionsProvider.notifier).load();
+    load();
+  }
+}
+
+final subscriptionsProvider =
+    StateNotifierProvider<SubscriptionsNotifier, List<SubscriptionEntity>>(
+  (ref) => SubscriptionsNotifier(ref));
+
+// Due subscriptions (next 3 days)
+final dueSubscriptionsProvider = Provider<List<SubscriptionEntity>>((ref) {
+  ref.watch(subscriptionsProvider);
+  return LocalDataSource().getDueSubscriptions();
+});
+
+// Monthly subscription cost
+final monthlySubscriptionCostProvider = Provider<double>((ref) {
+  final subs = ref.watch(subscriptionsProvider)
+      .where((s) => s.status == SubStatus.active);
+  double total = 0;
+  for (final s in subs) {
+    switch (s.recurrence) {
+      case RecurrenceType.daily:   total += s.amount * 30; break;
+      case RecurrenceType.weekly:  total += s.amount * 4.3; break;
+      case RecurrenceType.monthly: total += s.amount; break;
+      case RecurrenceType.yearly:  total += s.amount / 12; break;
+    }
+  }
+  return total;
+});
+
+// ── Anomaly Detection ─────────────────────────────────────────────────────────
+final anomaliesProvider = Provider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(transactionsProvider); // recompute on change
+  return LocalDataSource().detectAnomalies();
+});

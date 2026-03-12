@@ -6,6 +6,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/config/supabase_config.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/sync_service.dart';
+import 'core/services/family_service.dart';
+import 'core/services/widget_service.dart';
 import 'core/utils/app_router.dart';
 import 'core/utils/notification_service.dart';
 import 'core/theme/app_theme.dart';
@@ -39,6 +41,12 @@ void main() async {
 
   // ── Background sync (WorkManager) ─────────────────────────────────────────
   await SyncService.initialize();
+
+  // ── Family mode (Supabase Realtime) ───────────────────────────────────────
+  await FamilyService().initialize();
+
+  // ── Home Widget ───────────────────────────────────────────────────────────
+  await WidgetService().initialize();
 
   // ── Status bar ────────────────────────────────────────────────────────────
   SystemChrome.setSystemUIOverlayStyle(
