@@ -71,12 +71,7 @@ class AppConstants {
 class ExpenseCategories {
   ExpenseCategories._();
   static const List<Map<String, dynamic>> defaults = [
-    {
-      'id': 'transport',
-      'label': 'Transport',
-      'icon': 'transport',
-      'color': 0xFF4CAF50
-    },
+    // Dépenses quotidiennes
     {
       'id': 'nourriture',
       'label': 'Nourriture',
@@ -84,19 +79,48 @@ class ExpenseCategories {
       'color': 0xFFFF9800
     },
     {
-      'id': 'connexion',
-      'label': 'Connexion',
-      'icon': 'wifi',
-      'color': 0xFF2196F3
+      'id': 'transport',
+      'label': 'Transport',
+      'icon': 'transport',
+      'color': 0xFF4CAF50
     },
-    {'id': 'loyer', 'label': 'Loyer', 'icon': 'home', 'color': 0xFF9C27B0},
-    {'id': 'sante', 'label': 'Santé', 'icon': 'health', 'color': 0xFFF44336},
     {
-      'id': 'loisirs',
-      'label': 'Loisirs',
-      'icon': 'leisure',
-      'color': 0xFFE91E63
+      'id': 'mega',
+      'label': 'Méga (Données mobiles)',
+      'icon': 'phone',
+      'color': 0xFF03A9F4
     },
+    {'id': 'wifi', 'label': 'Wifi', 'icon': 'wifi', 'color': 0xFF2196F3},
+    {
+      'id': 'credit_tel',
+      'label': 'Crédit téléphone',
+      'icon': 'phone',
+      'color': 0xFF00BCD4
+    },
+
+    //Dépenses maison
+    // {'id': 'loyer', 'label': 'Loyer', 'icon': 'home', 'color': 0xFF9C27B0},
+    {
+      'id': 'eau_electricite',
+      'label': 'Eau / Électricité',
+      'icon': 'utilities',
+      'color': 0xFFFF5722
+    },
+    {
+      'id': 'gaz',
+      'label': 'Gaz / Charbon',
+      'icon': 'utilities',
+      'color': 0xFFFF7043
+    },
+    {
+      'id': 'maison',
+      'label': 'Maison (réparations)',
+      'icon': 'home',
+      'color': 0xFF795548
+    },
+
+    //Dépenses personnelles
+    {'id': 'sante', 'label': 'Santé', 'icon': 'health', 'color': 0xFFF44336},
     {
       'id': 'vetements',
       'label': 'Vêtements',
@@ -104,22 +128,52 @@ class ExpenseCategories {
       'color': 0xFF00BCD4
     },
     {
+      'id': 'loisirs',
+      'label': 'Loisirs',
+      'icon': 'leisure',
+      'color': 0xFFE91E63
+    },
+    {
       'id': 'education',
       'label': 'Éducation',
       'icon': 'education',
       'color': 0xFF3F51B5
     },
+
+    //Finances
+    {'id': 'dette', 'label': 'Dette', 'icon': 'transfer', 'color': 0xFF6D4C41},
     {
-      'id': 'eau_electricite',
-      'label': 'Eau/Électricité',
-      'icon': 'utilities',
-      'color': 0xFFFF5722
+      'id': 'epargne',
+      'label': 'Épargne',
+      'icon': 'investment',
+      'color': 0xFF8BC34A
     },
+    {
+      'id': 'transfert',
+      'label': 'Transfert envoyé',
+      'icon': 'transfer',
+      'color': 0xFF607D8B
+    },
+    {'id': 'cadeau', 'label': 'Cadeau', 'icon': 'gift', 'color': 0xFFE91E63},
+
+    // Social
     {
       'id': 'famille',
       'label': 'Famille',
       'icon': 'family',
       'color': 0xFF795548
+    },
+    {
+      'id': 'sorties',
+      'label': 'Sorties',
+      'icon': 'leisure',
+      'color': 0xFF9C27B0
+    },
+    {
+      'id': 'evenements',
+      'label': 'Événements (mariage, baptême...)',
+      'icon': 'gift',
+      'color': 0xFFFFC107
     },
     {
       'id': 'autres_dep',
@@ -211,7 +265,6 @@ class CategoryIcons {
         return Icons.laptop_rounded;
       case 'gift':
         return Icons.card_giftcard_rounded;
-      // Legacy
       case 'network_wifi':
         return Icons.wifi_rounded;
       case 'school_outlined':
