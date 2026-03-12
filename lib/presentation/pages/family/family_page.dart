@@ -327,7 +327,7 @@ class _FamilyPageState extends ConsumerState<FamilyPage> {
   void _showCodeDialog(String code) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Famille créée ! 🎉'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Partagez ce code avec vos proches :'),
@@ -374,16 +374,16 @@ class _FamilyPageState extends ConsumerState<FamilyPage> {
   Future<void> _confirmLeave() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Quitter la famille ?'),
         content: const Text(
             'Vous ne recevrez plus les transactions des autres membres. '
             'Vos propres données restent sauvegardées.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('Annuler')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Quitter'),
           ),
