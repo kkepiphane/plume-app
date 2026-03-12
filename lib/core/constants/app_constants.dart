@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Plume';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.0.4';
 
   // ── Hive Boxes ─────────────────────────────────────────────────────────────
   static const String transactionsBox = 'transactions_box';

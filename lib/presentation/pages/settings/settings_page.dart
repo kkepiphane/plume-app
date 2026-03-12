@@ -105,7 +105,6 @@ class SettingsPage extends ConsumerWidget {
           ),
         ]),
 
-        // ── À PROPOS ──────────────────────────────────────────────────────
         // ── OUTILS ────────────────────────────────────────────────────────
         _header(context, 'OUTILS'),
         _Card(children: [
@@ -123,13 +122,13 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: () => context.push('/reports'),
           ),
-          _Tile(
-            icon: Icons.people_rounded,
-            title: 'Mode Famille',
-            subtitle: 'Partagez le budget avec vos proches',
-            trailing: const Icon(Icons.chevron_right, size: 18),
-            onTap: () => context.push('/family'),
-          ),
+          // _Tile(
+          //   icon: Icons.people_rounded,
+          //   title: 'Mode Famille',
+          //   subtitle: 'Partagez le budget avec vos proches',
+          //   trailing: const Icon(Icons.chevron_right, size: 18),
+          //   onTap: () => context.push('/family'),
+          // ),
           _Tile(
             icon: Icons.trending_up_rounded,
             title: 'Dépenses inhabituelles',
@@ -140,67 +139,68 @@ class SettingsPage extends ConsumerWidget {
         ]),
 
         // ── SAUVEGARDE ────────────────────────────────────────────────────
-        _header(context, 'SAUVEGARDE GOOGLE DRIVE'),
-        _Card(children: [
-          if (!isLogged) ...[
-            _InfoBanner(
-              icon: Icons.info_outline_rounded,
-              message:
-                  'Connectez-vous pour sauvegarder vos données automatiquement '
-                  'chaque nuit à 2h00 sur votre Google Drive.',
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            _divider(context),
-            _Tile(
-              icon: Icons.login_rounded,
-              title: 'Se connecter',
-              subtitle: 'Email + code OTP — rapide et sans mot de passe',
-              onTap: () => context.push('/auth'),
-            ),
-          ] else ...[
-            // Logged in
-            _InfoRow(
-              icon: Icons.account_circle_outlined,
-              label: 'Compte',
-              value: AuthService().currentEmail ?? '',
-            ),
-            _divider(context),
-            lastSync.when(
-              data: (dt) => _InfoRow(
-                icon: Icons.sync_rounded,
-                label: 'Dernière sync',
-                value: dt != null ? _formatSync(dt) : 'Jamais',
-              ),
-              loading: () => _InfoRow(
-                  icon: Icons.sync_rounded, label: 'Dernière sync', value: '…'),
-              error: (_, __) => _InfoRow(
-                  icon: Icons.sync_rounded, label: 'Dernière sync', value: '—'),
-            ),
-            _divider(context),
-            _Tile(
-              icon: Icons.backup_outlined,
-              title: 'Sauvegarder maintenant',
-              subtitle: 'Envoyer les données vers Google Drive',
-              onTap: () => _doBackupNow(context, ref),
-            ),
-            _divider(context),
-            _Tile(
-              icon: Icons.restore_rounded,
-              title: 'Restaurer',
-              subtitle: 'Récupérer les données depuis Google Drive',
-              onTap: () => _doRestore(context, ref),
-            ),
-            _divider(context),
-            _Tile(
-              icon: Icons.logout_rounded,
-              title: 'Se déconnecter',
-              subtitle: 'Les données locales restent intactes',
-              onTap: () => _doLogout(context, ref),
-              danger: true,
-            ),
-          ],
-        ]),
+        // _header(context, 'SAUVEGARDE GOOGLE DRIVE'),
+        // _Card(children: [
+        //   if (!isLogged) ...[
+        //     _InfoBanner(
+        //       icon: Icons.info_outline_rounded,
+        //       message:
+        //           'Connectez-vous pour sauvegarder vos données automatiquement '
+        //           'chaque nuit à 2h00 sur votre Google Drive.',
+        //       color: Theme.of(context).colorScheme.primary,
+        //     ),
+        //     _divider(context),
+        //     _Tile(
+        //       icon: Icons.login_rounded,
+        //       title: 'Se connecter',
+        //       subtitle: 'Email + code OTP — rapide et sans mot de passe',
+        //       onTap: () => context.push('/auth'),
+        //     ),
+        //   ] else ...[
+        //     // Logged in
+        //     _InfoRow(
+        //       icon: Icons.account_circle_outlined,
+        //       label: 'Compte',
+        //       value: AuthService().currentEmail ?? '',
+        //     ),
+        //     _divider(context),
+        //     lastSync.when(
+        //       data: (dt) => _InfoRow(
+        //         icon: Icons.sync_rounded,
+        //         label: 'Dernière sync',
+        //         value: dt != null ? _formatSync(dt) : 'Jamais',
+        //       ),
+        //       loading: () => _InfoRow(
+        //           icon: Icons.sync_rounded, label: 'Dernière sync', value: '…'),
+        //       error: (_, __) => _InfoRow(
+        //           icon: Icons.sync_rounded, label: 'Dernière sync', value: '—'),
+        //     ),
+        //     _divider(context),
+        //     _Tile(
+        //       icon: Icons.backup_outlined,
+        //       title: 'Sauvegarder maintenant',
+        //       subtitle: 'Envoyer les données vers Google Drive',
+        //       onTap: () => _doBackupNow(context, ref),
+        //     ),
+        //     _divider(context),
+        //     _Tile(
+        //       icon: Icons.restore_rounded,
+        //       title: 'Restaurer',
+        //       subtitle: 'Récupérer les données depuis Google Drive',
+        //       onTap: () => _doRestore(context, ref),
+        //     ),
+        //     _divider(context),
+        //     _Tile(
+        //       icon: Icons.logout_rounded,
+        //       title: 'Se déconnecter',
+        //       subtitle: 'Les données locales restent intactes',
+        //       onTap: () => _doLogout(context, ref),
+        //       danger: true,
+        //     ),
+        //   ],
+        // ]),
 
+        // ── À PROPOS ──────────────────────────────────────────────────────
         _header(context, 'À PROPOS'),
         _Card(children: [
           _Tile(
